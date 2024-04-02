@@ -120,7 +120,7 @@ class Deep(FA):
         gamma: float,
         alpha: float,
         feature_extractor: FE,
-        device: str,
+        device: torch.device,
         model: nn.Module,
         loss_fn: Loss,
         optimizer: Optimizer,
@@ -145,41 +145,50 @@ class Deep(FA):
             return self._psi(states.to(self.device))
 
     def update(self, transitions: list[Transition]) -> None:
-        size = len(transitions)
         self._psi.train()
-        for batch, (states, next_states) in enumerate(transitions):
-            states, next_states = states.to(self.device), next_states.to(self.device)
-            # Predict successor features.
-            pred = self._psi(states)
 
-            # Get target successor features from target model.
-            with torch.no_grad():
-                sf_next_states = self.target_model(next_states)
-            targets = self.phi(states) + self.gamma * sf_next_states
+        # Prepare batch. See https://stackoverflow.com/a/19343/3343043 for detailed explanation
+        batch = Transition(*zip(*transitions))
+        states = torch.tensor(batch.state, dtype=torch.float32, device=self.device)
+        next_states = torch.tensor(
+            batch.next_state, dtype=torch.float32, device=self.device
+        )
+        terminals = torch.tensor(
+            batch.terminal, dtype=torch.float32, device=self.device
+        ).unsqueeze(-1)
 
-            # Compute prediction error.
-            loss = self.loss_fn(pred, targets)
+        # Predict successor features.
+        pred = self._psi(states)
 
-            # Backpropagation.
-            loss.backward()
-            self.optimizer.step()
-            self.optimizer.zero_grad()
+        # Get target successor features from target model.
+        with torch.no_grad():
+            sf_next_states = self.target_model(next_states)
+        phis = torch.tensor(
+            self.phi(batch.state), dtype=torch.float32, device=self.device
+        )
+        targets = phis + self.gamma * (1 - terminals) * sf_next_states
 
-            # Soft target network weights update.
-            self.update_counter += 1
-            if self.update_counter >= self.target_update_interval:
-                self.update_counter = 0
-                state_dict = self._psi.state_dict()
-                target_state_dict = self.target_model.state_dict()
-                for key in state_dict:
-                    target_state_dict[key] = (state_dict[key] * self.tau) + (
-                        target_state_dict[key] * (1 - self.tau)
-                    )
-                self.target_model.load_state_dict(target_state_dict)
+        # Compute prediction error.
+        loss = self.loss_fn(pred, targets)
 
-            if batch % 1000 == 0:
-                loss, current = loss.item(), (batch + 1) * len(states)
-                print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+        # Backpropagation.
+        loss.backward()
+        self.optimizer.step()
+        self.optimizer.zero_grad()
+
+        # Soft target network weights update.
+        self.update_counter += 1
+        if self.update_counter >= self.target_update_interval:
+            self.update_counter = 0
+            state_dict = self._psi.state_dict()
+            target_state_dict = self.target_model.state_dict()
+            for key in state_dict:
+                target_state_dict[key] = (state_dict[key] * self.tau) + (
+                    target_state_dict[key] * (1 - self.tau)
+                )
+            self.target_model.load_state_dict(target_state_dict)
+
+        print(f"loss: {loss.item():>7f}")
 
 
 class FFNetwork(nn.Module):
@@ -190,17 +199,26 @@ class FFNetwork(nn.Module):
         feature_dim = kwargs["feature_dim"]
         hidden_dim = kwargs["hidden_dim"]
         num_hidden_layers = kwargs["num_hidden_layers"]
-        activation_fn = kwargs["acivation_fn"]
+        activation_fn = kwargs["activation_fn"]
         self.flatten = nn.Flatten()
 
-        layers = [nn.LayerNorm(feature_dim, hidden_dim)]
+        layers = [nn.Linear(feature_dim, hidden_dim)]
         layers.append(activation_fn())
         for _ in range(num_hidden_layers):
             layers.append(nn.Linear(hidden_dim, hidden_dim))
             layers.append(activation_fn())
         layers.append(nn.Linear(hidden_dim, feature_dim))
+
         self._nn = nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass through network.
+
+        Args:
+            x (torch.Tensor): Input.
+
+        Returns:
+            torch.Tensor: Output.
+        """
         x = self.flatten(x)
         return self._nn(x)
