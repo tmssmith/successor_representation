@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "successor-representation"
+version = "0.1.0"
+description = ""
+authors = ["Akshil Patel <ap2078@bath.ac.uk>, Tom Smith <tmssmith@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = "^2.2.1"
+numpy = "^1.26.0"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.0.2"
+multilevelsuccessoroptions = {path = "../MultiLevelSuccessorOptions/", develop = false}
+
+[tool.pylint]
+disable="C0114"
+max-line-length="88"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
