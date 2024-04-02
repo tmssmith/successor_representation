@@ -141,8 +141,9 @@ class Deep(FA):
     def get_successor(
         self, states: list[int | float | tuple | str | list | np.ndarray]
     ) -> np.ndarray:
+        states = torch.tensor(states, dtype=torch.float32, device=self.device)
         with torch.no_grad():
-            return self._psi(states.to(self.device))
+            return self._psi(states).cpu()
 
     def update(self, transitions: list[Transition]) -> None:
         self._psi.train()
