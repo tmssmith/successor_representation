@@ -1,9 +1,14 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
+import torch
+from torch import nn
+from torch.nn.modules.loss import _Loss as Loss
+from torch.optim import Optimizer
 
 from successor_representation.feature_extractors import OHE, StateFeatures
-from successor_representation.function_approximators import FA, Table
+from successor_representation.function_approximators import FA, Table, Deep
+from successor_representation.utils import Transition
 
 
 class Successor(ABC):
@@ -30,11 +35,11 @@ class Successor(ABC):
         self.psi: FA = None
 
     @abstractmethod
-    def get_successor(self, states: list) -> np.ndarray:
+    def get_successor(self, states: list | None = None) -> np.ndarray:
         """Get the successor representation of the states.
 
         Args:
-            states (list): States to get the successor representation.
+            states (list | None): States to get the successor representation. Defaults to None.
 
         Returns:
             np.ndarray: Successor representation of states.
@@ -73,7 +78,7 @@ class TabularSR(Successor):
             self.psi.set_successors(states, successors)
 
     def get_successor(
-        self, states: list[int | float | tuple | str | list | np.ndarray] | None
+        self, states: list[int | float | tuple | str | list | np.ndarray] | None = None
     ) -> np.ndarray:
         if states is None:
             states = [
@@ -82,7 +87,7 @@ class TabularSR(Successor):
 
         return self.psi(states)
 
-    def update_successor(self, transitions: list[tuple]) -> None:
+    def update_successor(self, transitions: list[Transition]) -> None:
         if self.use_computed_sr:
             return
         self.psi.update(transitions)
@@ -112,7 +117,7 @@ class TabularSF(Successor):
             self.psi.set_successors(states, successors)
 
     def get_successor(
-        self, states: list[int | float | tuple | str | list | np.ndarray] | None
+        self, states: list[int | float | tuple | str | list | np.ndarray] | None = None
     ) -> np.ndarray:
         if states is None:
             states = [
@@ -121,7 +126,53 @@ class TabularSF(Successor):
 
         return self.psi(states)
 
-    def update_successor(self, transitions: list[tuple]) -> None:
+    def update_successor(self, transitions: list[Transition]) -> None:
         if self.use_computed_sr:
             return
         self.psi.update(transitions)
+
+
+class DeepSF(Successor):
+    """Deep Successor Features. Uses environment state features."""
+
+    def __init__(
+        self,
+        env,
+        gamma: float,
+        alpha: float,
+        tau: float,
+        target_update_interval: int,
+        model: nn.Module,
+        loss_fn: Loss,
+        optimizer: Optimizer,
+    ) -> None:
+        super().__init__(env, gamma, alpha)
+        phi = StateFeatures(env)
+
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+        elif torch.backends.mps.is_available():
+            device = torch.device("mps")
+        else:
+            device = torch.device("cpu")
+        print(f"Using {device}")
+
+        self.psi = Deep(
+            gamma,
+            alpha,
+            phi,
+            device,
+            model,
+            loss_fn,
+            optimizer,
+            tau,
+            target_update_interval,
+        )
+
+    def get_successor(self, states: list | None = None) -> np.ndarray:
+        if states is None:
+            return None
+        return np.asarray(self.psi(states))
+
+    def update_successor(self, transitions: list[Transition]) -> None:
+        return self.psi.update(transitions)
