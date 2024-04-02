@@ -56,8 +56,9 @@ class ReplayBuffer:
         Returns:
             list[Transition] | None: Sampled Transitions, or None if batch size exceeds transitions in buffer.
         """
-        if batch_size >= len(self):
-            return self.rng.choice(self.buffer, batch_size, replace=False)
+        if batch_size <= len(self):
+            idxs = self.rng.choice(len(self), batch_size, replace=False)
+            return [self.buffer[idx] for idx in idxs]
         return None
 
     def __len__(self) -> int:
