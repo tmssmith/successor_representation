@@ -47,6 +47,14 @@ class ReplayBuffer:
         """
         self.buffer.append(transition)
 
+    def store_many(self, transitions: list[Transition]) -> None:
+        """Adds a list of Transitions to the buffer.
+
+        Args:
+            transitions (list[Transition]): The transitions to add to the buffer.
+        """
+        self.buffer.extend(transitions)
+
     def sample(self, batch_size: int) -> list[Transition] | None:
         """Samples a batch of Transitions.
 
