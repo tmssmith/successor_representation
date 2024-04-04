@@ -203,13 +203,14 @@ class FFNetwork(nn.Module):
 
     def __init__(self, **kwargs) -> None:
         super().__init__()
+        state_dim = kwargs["state_dim"]
         feature_dim = kwargs["feature_dim"]
         hidden_dim = kwargs["hidden_dim"]
         num_hidden_layers = kwargs["num_hidden_layers"]
         activation_fn = kwargs["activation_fn"]
         self.flatten = nn.Flatten()
 
-        layers = [nn.Linear(feature_dim, hidden_dim)]
+        layers = [nn.Linear(state_dim, hidden_dim)]
         layers.append(activation_fn())
         for _ in range(num_hidden_layers):
             layers.append(nn.Linear(hidden_dim, hidden_dim))
