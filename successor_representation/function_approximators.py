@@ -145,7 +145,13 @@ class Deep(FA):
         with torch.no_grad():
             return self._psi(states).cpu()
 
-    def update(self, transitions: list[Transition]) -> None:
+    def update(self, transitions: list[Transition], verbose: bool = False) -> None:
+        """Train the neural network based on experiences.
+
+        Args:
+            transitions (list[Transition]): A list of Transitions.
+            verbose (bool, optional): If True, perform update with verbose logging. Defaults to False. Defaults to False.
+        """
         self._psi.train()
 
         # Prepare batch. See https://stackoverflow.com/a/19343/3343043 for detailed explanation
@@ -188,8 +194,8 @@ class Deep(FA):
                     target_state_dict[key] * (1 - self.tau)
                 )
             self.target_model.load_state_dict(target_state_dict)
-
-        print(f"loss: {loss.item():>7f}")
+        if verbose:
+            print(f"loss: {loss.item():>7f}")
 
 
 class FFNetwork(nn.Module):

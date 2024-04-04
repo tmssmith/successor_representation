@@ -174,5 +174,14 @@ class DeepSF(Successor):
             return None
         return np.asarray(self.psi(states))
 
-    def update_successor(self, transitions: list[Transition]) -> None:
-        return self.psi.update(transitions)
+    def update_successor(
+        self, transitions: list[Transition], verbose: bool = False
+    ) -> None:
+        """Update the successor representation based on experience.
+
+        Args:
+            transitions (list): Experience to use for update in form [[state, next_state]].
+            verbose (bool, optional): If False, perform update with verbose logging. Defaults to False.
+        """
+
+        self.psi.update(transitions, verbose)
