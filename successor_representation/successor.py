@@ -145,9 +145,10 @@ class DeepSF(Successor):
         model: nn.Module,
         loss_fn: Loss,
         optimizer: Optimizer,
+        num_features: int | None = None,
     ) -> None:
         super().__init__(env, gamma, alpha)
-        phi = StateFeatures(env)
+        phi = StateFeatures(env, num_features)
 
         if torch.cuda.is_available():
             device = torch.device("cuda")

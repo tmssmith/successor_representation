@@ -1,7 +1,21 @@
 from abc import ABC, abstractmethod
-from typing import Hashable
+from typing import Hashable, Any
 
 import numpy as np
+
+
+def identity(x: Any) -> Any:
+    """Identity function, returns inout argument.
+
+    This function is used as a pass-through function for feature extraction.
+
+    Args:
+        x (Any): Input argument.
+
+    Returns:
+        Any: Input argument.
+    """
+    return x
 
 
 class FE(ABC):
@@ -73,14 +87,15 @@ class StateFeatures(FE):
     For example, a gridworld might have state features (x, y) coordinates.
     """
 
-    def __init__(self, env):
+    def __init__(self, env, num_features: int | None = None):
         if hasattr(env, "get_feature_representation") and callable(
             env.get_feature_representation
         ):
             self.feature_representation = env.get_feature_representation
             self.len = env.num_features
         else:
-            raise AttributeError
+            self.feature_representation = identity
+            self.len = num_features
 
     def get_features(self, states: list[Hashable]) -> np.ndarray:
         return np.array([self.feature_representation(s) for s in states])
