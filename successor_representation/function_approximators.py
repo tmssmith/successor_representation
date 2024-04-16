@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 from collections import defaultdict
 import operator
 import copy
@@ -197,24 +198,33 @@ class Deep(FA):
         if verbose:
             print(f"loss: {loss.item():>7f}")
 
+    def save(self, path: Path):
+        """Save psi model parameters.
+
+        Args:
+            path (Path): Path to file to save to.
+        """
+        torch.save(self._psi.state_dict(), path)
+
 
 class FFNetwork(nn.Module):
     """Neural Network model for use with Successor Features."""
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(
+        self,
+        state_dim: int,
+        feature_dim: int,
+        hidden_dim: int,
+        num_hidden_layers: int,
+    ) -> None:
         super().__init__()
-        state_dim = kwargs["state_dim"]
-        feature_dim = kwargs["feature_dim"]
-        hidden_dim = kwargs["hidden_dim"]
-        num_hidden_layers = kwargs["num_hidden_layers"]
-        activation_fn = kwargs["activation_fn"]
         self.flatten = nn.Flatten()
 
         layers = [nn.Linear(state_dim, hidden_dim)]
-        layers.append(activation_fn())
+        layers.append(nn.ReLU())
         for _ in range(num_hidden_layers):
             layers.append(nn.Linear(hidden_dim, hidden_dim))
-            layers.append(activation_fn())
+            layers.append(nn.ReLU())
         layers.append(nn.Linear(hidden_dim, feature_dim))
 
         self._nn = nn.Sequential(*layers)
