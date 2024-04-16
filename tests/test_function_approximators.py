@@ -4,7 +4,8 @@ import pytest
 
 import multilevelsuccessoroptions.envs.tabular as envs
 
-from successor_representation import Table, OHE, StateFeatures
+from successor_representation.function_approximators import Table
+from successor_representation.feature_extractors import OHE
 
 
 @pytest.fixture(name="fourrooms")
